@@ -1,3 +1,4 @@
+# ─── IMPORTS ───────────────────────────────────────────────────────────────────
 import re
 import streamlit as st
 from pypdf import PdfReader
@@ -7,16 +8,11 @@ from PIL import Image
 import os
 from dotenv import load_dotenv  # Import to load environment variables
 
-
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores.faiss import FAISS
-from langchain.chat_models import AzureChatOpenAI
-from langchain.schema import HumanMessage
-
-# ─── LOAD ENV VARIABLES ───────────────────────────────────────────────────────
-load_dotenv()  # Load the environment variables from the .env file
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.messages import HumanMessage
 
 # ─── AZURE CONFIG ─────────────────────────────────────────────────────────────
 AZURE_API_TYPE = os.getenv("AZURE_API_TYPE")
@@ -28,19 +24,18 @@ EMBEDDING_DEPLOYMENT = os.getenv("EMBEDDING_DEPLOYMENT")
 CHAT_DEPLOYMENT = os.getenv("CHAT_DEPLOYMENT")
 
 # ─── INIT EMBEDDINGS & LLM ─────────────────────────────────────────────────────
-embeddings = OpenAIEmbeddings(
-    deployment=EMBEDDING_DEPLOYMENT,
-    openai_api_type=AZURE_API_TYPE,
-    openai_api_base=AZURE_API_BASE,
-    openai_api_version=AZURE_API_VERSION,
-    openai_api_key=AZURE_API_KEY,
+embeddings = AzureOpenAIEmbeddings(
+    azure_deployment=EMBEDDING_DEPLOYMENT,
+    azure_endpoint=AZURE_API_BASE,
+    api_key=AZURE_API_KEY,
+    api_version=AZURE_API_VERSION,
 )
+
 llm = AzureChatOpenAI(
-    deployment_name=CHAT_DEPLOYMENT,
-    openai_api_type=AZURE_API_TYPE,
-    openai_api_base=AZURE_API_BASE,
-    openai_api_version=AZURE_API_VERSION,
-    openai_api_key=AZURE_API_KEY,
+    azure_deployment=CHAT_DEPLOYMENT,
+    azure_endpoint=AZURE_API_BASE,
+    api_key=AZURE_API_KEY,
+    api_version=AZURE_API_VERSION,
     temperature=0.0,
     max_tokens=500,
     verbose=False,
