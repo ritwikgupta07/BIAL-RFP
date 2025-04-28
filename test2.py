@@ -10,9 +10,9 @@ from dotenv import load_dotenv  # Import to load environment variables
 
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_community.chat_models import AzureChatOpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores.faiss import FAISS
+from langchain.chat_models import AzureChatOpenAI
 from langchain.schema import HumanMessage
 
 # ─── LOAD ENV VARIABLES ───────────────────────────────────────────────────────
