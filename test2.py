@@ -183,4 +183,42 @@ if excel_file:
         st.error("Your file must contain a column named **Query**.")
         st.stop()
 
-    st.subheader
+    st.subheader("Loaded Queries")
+    st.dataframe(df, use_container_width=True)
+
+    if st.button("Generate Responses"):
+        with st.spinner("Answering queries…"):
+            df["Response"] = (
+                df["Query"]
+                .fillna("")
+                .apply(answer_faiss if mode == "FAISS" else answer_direct)
+            )
+
+        st.subheader("Responses")
+        st.dataframe(df, use_container_width=True)
+
+        csv_out = df.to_csv(index=False).encode("utf-8")
+        st.download_button("⬇️ Download Responses", csv_out, "responses.csv", "text/csv")
+
+        # ─── VISUALIZATIONS ───────────────────────────────────────────────
+        if viz_option == "Bar chart of response lengths":
+            lengths = df["Response"].str.len().fillna(0)
+            fig, ax = plt.subplots()
+            ax.bar(df.index.astype(str), lengths)
+            ax.set_xlabel("Query #")
+            ax.set_ylabel("Response length")
+            st.pyplot(fig)
+
+        elif viz_option == "Pie chart of answer coverage":
+            covered = (
+                df["Response"]
+                .str.strip()
+                .astype(bool)
+                .value_counts()
+                .reindex([True, False], fill_value=0)
+            )
+            fig, ax = plt.subplots()
+            ax.pie(covered, labels=["Answered", "Blank"], autopct="%1.0f%%")
+            st.pyplot(fig)
+else:
+    st.info("Please upload your CSV/XLSX of queries.")
