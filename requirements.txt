@@ -1,6 +1,7 @@
 streamlit
 pyperclip
 PyPDF2
+pypdf
 langchain
 requests
 networkx
