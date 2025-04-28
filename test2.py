@@ -7,6 +7,7 @@ from PIL import Image
 import os
 from dotenv import load_dotenv  # Import to load environment variables
 
+
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
