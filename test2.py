@@ -74,7 +74,7 @@ if pdf_file and mode == "Large Size RFP":
     co = st.sidebar.slider(
         "Chunk overlap", 50, 1000, 150, help="Overlap between chunks"
     )
-    if st.sidebar.button("Build FAISS index"):
+    if st.sidebar.button("Build Large RFP index"):
         # Build page-level Documents with page+clause metadata
         CLAUSE_RE = re.compile(r"^(\d+(?:\.\d+)+)")
         pages = []
@@ -101,9 +101,9 @@ if pdf_file and mode == "Large Size RFP":
         # Store full_text for direct mode
         st.session_state.full_text = "".join(d.page_content for d in pages)
         st.session_state.faiss_built = True
-        st.sidebar.success(f"Built FAISS index over {len(chunks)} chunks.")
+        st.sidebar.success(f"Built large RFP index over {len(chunks)} chunks.")
 
-    show_excerpts = st.sidebar.checkbox("🔍 Show FAISS excerpts", value=False)
+    show_excerpts = st.sidebar.checkbox("🔍 Show RFP excerpts", value=False)
     viz_option = st.sidebar.selectbox(
         "Visualization",
         ["None", "Bar chart of response lengths", "Pie chart of answer coverage"],
@@ -127,7 +127,7 @@ if mode == "Small Size RFP" and st.session_state.full_text is None:
 
 # FAISS: require build
 if mode == "Large Size RFP" and not st.session_state.faiss_built:
-    st.info("In sidebar: choose chunk settings and click **Build FAISS index**.")
+    st.info("In sidebar: choose chunk settings and click **Build large RFP index**.")
     st.stop()
 
 
