@@ -62,14 +62,14 @@ for key in ("full_text", "chunks", "faiss_store", "faiss_built"):
     st.session_state.setdefault(key, None)
 
 # ─── SIDEBAR ───────────────────────────────────────────────────────────────────
-mode = st.sidebar.radio("Retrieval mode", ["Direct Context", "FAISS"])
+mode = st.sidebar.radio("Input mode", ["Small Size RFP", "Large Size RFP"])
 pdf_file = st.sidebar.file_uploader("Upload Tender PDF", type="pdf")
 excel_file = st.sidebar.file_uploader(
     "Upload Bidder Queries (CSV/XLSX)", type=["csv", "xlsx"]
 )
 
 # FAISS controls
-if pdf_file and mode == "FAISS":
+if pdf_file and mode == "Large Size RFP":
     cs = st.sidebar.slider("Chunk size", 200, 2000, 600, help="Chars per chunk")
     co = st.sidebar.slider(
         "Chunk overlap", 50, 1000, 150, help="Overlap between chunks"
@@ -118,7 +118,7 @@ if not pdf_file:
     st.stop()
 
 # Direct Context: load full text if needed
-if mode == "Direct Context" and st.session_state.full_text is None:
+if mode == "Small Size RFP" and st.session_state.full_text is None:
     reader = PdfReader(pdf_file)
     st.session_state.full_text = "".join(
         page.extract_text() or "" for page in reader.pages
@@ -126,7 +126,7 @@ if mode == "Direct Context" and st.session_state.full_text is None:
     st.success(f"Loaded full PDF text ({len(st.session_state.full_text):,} chars).")
 
 # FAISS: require build
-if mode == "FAISS" and not st.session_state.faiss_built:
+if mode == "Large Size RFP" and not st.session_state.faiss_built:
     st.info("In sidebar: choose chunk settings and click **Build FAISS index**.")
     st.stop()
 
@@ -187,7 +187,7 @@ if excel_file:
             df["Response"] = (
                 df["Query"]
                 .fillna("")
-                .apply(answer_faiss if mode == "FAISS" else answer_direct)
+                .apply(answer_faiss if mode == "Large Size RFP" else answer_direct)
             )
 
         st.subheader("Responses")
