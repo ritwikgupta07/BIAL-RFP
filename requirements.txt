@@ -24,4 +24,4 @@ azure-storage-file-share
 azure-monitor-opentelemetry
 openpyxl
 pandas
-matplotib
+matplotlib
