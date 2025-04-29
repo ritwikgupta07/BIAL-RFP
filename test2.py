@@ -62,17 +62,8 @@ for key in ("full_text", "chunks", "faiss_store", "faiss_built"):
     st.session_state.setdefault(key, None)
 
 # ─── SIDEBAR ───────────────────────────────────────────────────────────────────
+mode = st.sidebar.radio("Input mode", ["Small Size RFP", "Large Size RFP"])
 pdf_file = st.sidebar.file_uploader("Upload Tender PDF", type="pdf")
-
-# Automatically determine the mode after file upload
-if pdf_file:
-    reader = PdfReader(pdf_file)
-    num_pages = len(reader.pages)
-    mode = "Large Size RFP" if num_pages >= 25 else "Small Size RFP"
-    st.sidebar.markdown(f"📄 **Detected Mode:** `{mode}` ({num_pages} pages)")
-else:
-    mode = None
-
 excel_file = st.sidebar.file_uploader(
     "Upload Bidder Queries (CSV/XLSX)", type=["csv", "xlsx"]
 )
