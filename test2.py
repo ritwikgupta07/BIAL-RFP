@@ -15,6 +15,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage
 
 # ─── AZURE CONFIG ─────────────────────────────────────────────────────────────
+load_dotenv()
 AZURE_API_TYPE = os.getenv("AZURE_API_TYPE")
 AZURE_API_BASE = os.getenv("AZURE_API_BASE")
 AZURE_API_KEY = os.getenv("AZURE_API_KEY")
@@ -46,7 +47,6 @@ st.set_page_config(
     page_title="BIAL RFP Query Builder", page_icon="bial_logo.png", layout="wide"
 )
 
-# Header with BIAL logo
 col1, col2 = st.columns([1, 8], gap="small")
 with col1:
     try:
@@ -57,51 +57,72 @@ with col1:
 with col2:
     st.title("📄 RFP Query Builder")
 
-# Session-state defaults
-for key in ("full_text", "chunks", "faiss_store", "faiss_built"):
+for key in ("full_text", "chunks", "faiss_store", "faiss_built", "pdfs_hash"):
     st.session_state.setdefault(key, None)
 
 # ─── SIDEBAR ───────────────────────────────────────────────────────────────────
 mode = st.sidebar.radio("Input mode", ["Small Size RFP", "Large Size RFP"])
-pdf_file = st.sidebar.file_uploader("Upload Tender PDF", type="pdf")
+pdf_files = st.sidebar.file_uploader(
+    "Upload Tender PDFs", type="pdf", accept_multiple_files=True
+)
 excel_file = st.sidebar.file_uploader(
     "Upload Bidder Queries (CSV/XLSX)", type=["csv", "xlsx"]
 )
 
+uploaded_pdf_names = [f.name for f in pdf_files] if pdf_files else []
+pdfs_hash = hash("".join(uploaded_pdf_names))
+
+if st.session_state.pdfs_hash != pdfs_hash:
+    st.session_state.full_text = None
+    st.session_state.chunks = None
+    st.session_state.faiss_store = None
+    st.session_state.faiss_built = False
+    st.session_state.pdfs_hash = pdfs_hash
+
 # FAISS controls
-if pdf_file and mode == "Large Size RFP":
+if pdf_files and mode == "Large Size RFP":
     cs = st.sidebar.slider("Chunk size", 200, 2000, 600, help="Chars per chunk")
     co = st.sidebar.slider(
         "Chunk overlap", 50, 1000, 150, help="Overlap between chunks"
     )
+
     if st.sidebar.button("Build Large RFP index"):
-        # Build page-level Documents with page+clause metadata
         CLAUSE_RE = re.compile(r"^(\d+(?:\.\d+)+)")
         pages = []
-        reader = PdfReader(pdf_file)
-        for i, pg in enumerate(reader.pages, start=1):
-            text = pg.extract_text() or ""
-            clause = None
-            for line in text.splitlines():
-                m = CLAUSE_RE.match(line.strip())
-                if m:
-                    clause = m.group(1)
-                    break
-            pages.append(
-                Document(page_content=text, metadata={"page": i, "clause": clause})
-            )
+        total_pages = 0
 
-        # Chunk while preserving metadata
+        for pdf in pdf_files:
+            reader = PdfReader(pdf)
+            for i, pg in enumerate(reader.pages, start=1):
+                text = pg.extract_text() or ""
+                clause = None
+                for line in text.splitlines():
+                    m = CLAUSE_RE.match(line.strip())
+                    if m:
+                        clause = m.group(1)
+                        break
+                pages.append(
+                    Document(
+                        page_content=text,
+                        metadata={
+                            "page": total_pages + i,
+                            "clause": clause,
+                            "source_file": pdf.name,
+                        },
+                    )
+                )
+            total_pages += len(reader.pages)
+
         splitter = RecursiveCharacterTextSplitter(chunk_size=cs, chunk_overlap=co)
         chunks = splitter.split_documents(pages)
 
-        # Build FAISS
         st.session_state.chunks = chunks
         st.session_state.faiss_store = FAISS.from_documents(chunks, embeddings)
-        # Store full_text for direct mode
         st.session_state.full_text = "".join(d.page_content for d in pages)
         st.session_state.faiss_built = True
-        st.sidebar.success(f"Built large RFP index over {len(chunks)} chunks.")
+        st.sidebar.success(
+            f"Built large RFP index over {len(chunks)} chunks from {len(pdf_files)} files."
+        )
 
     show_excerpts = st.sidebar.checkbox("🔍 Show RFP excerpts", value=False)
     viz_option = st.sidebar.selectbox(
@@ -113,19 +134,18 @@ else:
     viz_option = "None"
 
 # ─── MAIN PANEL ────────────────────────────────────────────────────────────────
-if not pdf_file:
-    st.info("Please upload a tender PDF to begin.")
+if not pdf_files:
+    st.info("Please upload one or more tender PDFs to begin.")
     st.stop()
 
-# Direct Context: load full text if needed
 if mode == "Small Size RFP" and st.session_state.full_text is None:
-    reader = PdfReader(pdf_file)
-    st.session_state.full_text = "".join(
-        page.extract_text() or "" for page in reader.pages
-    )
-    st.success(f"Loaded full PDF text ({len(st.session_state.full_text):,} chars).")
+    full_texts = []
+    for pdf in pdf_files:
+        reader = PdfReader(pdf)
+        full_texts.append("".join(page.extract_text() or "" for page in reader.pages))
+    st.session_state.full_text = "\n".join(full_texts)
+    st.success(f"Loaded full text from {len(pdf_files)} PDFs.")
 
-# FAISS: require build
 if mode == "Large Size RFP" and not st.session_state.faiss_built:
     st.info("In sidebar: choose chunk settings and click **Build large RFP index**.")
     st.stop()
@@ -143,12 +163,11 @@ def answer_direct(q: str) -> str:
 
 def answer_faiss(q: str) -> str:
     docs = st.session_state.faiss_store.similarity_search(q, k=3)
-    # optional excerpts preview
     if show_excerpts:
         for i, d in enumerate(docs, start=1):
             meta = d.metadata
             st.markdown(
-                f"**Excerpt {i} (Clause {meta.get('clause')}, pg {meta.get('page')}):** {d.page_content[:200]}…"
+                f"**Excerpt {i} (Clause {meta.get('clause')}, pg {meta.get('page')} from {meta.get('source_file')}):** {d.page_content[:200]}…"
             )
     excerpt_text = "\n\n".join(d.page_content for d in docs)
     prompt = (
@@ -196,7 +215,6 @@ if excel_file:
         csv_out = df.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Download Responses", csv_out, "responses.csv", "text/csv")
 
-        # ─── VISUALIZATIONS ───────────────────────────────────────────────
         if viz_option == "Bar chart of response lengths":
             lengths = df["Response"].str.len().fillna(0)
             fig, ax = plt.subplots()
